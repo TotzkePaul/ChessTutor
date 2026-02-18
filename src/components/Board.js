@@ -8,8 +8,7 @@ import '../styles/Board.css';
  * Uses Square components to render individual squares
  */
 const Board = () => {
-  const { 
-    fen, 
+  const {    
     makeMove, 
     selectedSquare, 
     setSelectedSquare, 
@@ -57,11 +56,8 @@ const Board = () => {
       // If clicking on a different square - try to move
       if (selectedSquare !== square) {
         // Attempt to make the move
-        const result = makeMove({
-          from: selectedSquare,
-          to: square
-        });
-        
+        makeMove({ from: selectedSquare, to: square });
+
         // Clear selection regardless of move success
         setSelectedSquare(null);
       } else {

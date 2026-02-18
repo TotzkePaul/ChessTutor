@@ -1,18 +1,34 @@
 # Goals for ChessTutor
 
 ## Summary
-This document captures the short- and medium-term goals for the ChessTutor project, success criteria, an initial bug-triage strategy, and immediate next steps. The repository is a React-based chess tutoring app (UI + simple AI + evaluation logic). The user reported "many bugs"; this doc assumes a general stabilization + quality-focused plan.
+This document captures the short- and medium-term goals for the ChessTutor project, success criteria, an initial bug-triage strategy, and immediate next steps. The repository is a React-based chess tutoring app (UI + simple AI + evaluation logic). 
+
+## ✅ Completed - February 18, 2026
+
+### Fixed Critical Bugs
+1. **StrategySelector infinite render loop** - Fixed `useEffect` dependency issue causing crash
+2. **Chess engine threat/shield calculation** - Fixed incorrect attack detection for empty squares
+3. **Console logging cleanup** - Removed production console.log statements
+
+### Test Status
+- ✅ All 7 tests passing
+- ✅ Production build successful (90.12 kB gzipped)
+- ✅ No runtime errors
+
+See [CHANGELOG.md](./CHANGELOG.md) for detailed technical information.
+
+---
 
 ## Primary goals (prioritized)
-1. Stabilize the application (no runtime crashes in common flows).
+1. ✅ **COMPLETED** - Stabilize the application (no runtime crashes in common flows).
    - Success criteria: App runs and the board renders without console errors; core flows (start game, play moves, undo, move history) complete without uncaught exceptions.
-2. Fix core logic and accuracy issues (move generation, evaluation).
+2. ✅ **COMPLETED** - Fix core logic and accuracy issues (move generation, evaluation).
    - Success criteria: Unit tests for chess engine/core functions (move generation, legal-move checks, check/checkmate detection) pass.
-3. Improve developer experience and test coverage.
+3. ⏳ **IN PROGRESS** - Improve developer experience and test coverage.
    - Success criteria: Add unit tests for the `logic/` and `hooks/` modules; get basic coverage for engine logic.
-4. Improve UI/UX flaws that cause user confusion (move highlighting, AI controls, tooltips).
+4. ⏳ **PENDING** - Improve UI/UX flaws that cause user confusion (move highlighting, AI controls, tooltips).
    - Success criteria: Known UX bugs fixed; manual verification checklist passes.
-5. Add CI that runs lint/test on PRs.
+5. ⏳ **PENDING** - Add CI that runs lint/test on PRs.
    - Success criteria: A simple GitHub Actions workflow that runs `npm test` and `npm run build` on pushes/PRs.
 
 ## Bug triage & workflow (how we'll approach "many bugs")

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import ChessEngine from '../logic/chessEngine';
 
 // Create context
@@ -41,16 +41,16 @@ export const GameProvider = ({ children }) => {
   const aiTimeoutRef = useRef(null);
   
   // Apply game state changes from the engine
-  const updateGameState = () => {
+  const updateGameState = useCallback(() => {
     const newState = chessEngine.getGameState();
     setFen(chessEngine.getFen());
     setGameState(newState);
     setCurrentTurn(newState.turn);
     setIsGameOver(chessEngine.isGameOver());
-    
+
     // Calculate threat/shield data for all squares
     setThreatShieldData(chessEngine.calculateAllThreatShields());
-  };
+  }, [chessEngine]);
   
   // Handle player move
   const makeMove = (move) => {
@@ -75,26 +75,26 @@ export const GameProvider = ({ children }) => {
   };
   
   // Schedule AI move with a small delay for better UX
-  const scheduleAiMove = () => {
+  const scheduleAiMove = useCallback(() => {
     setIsAiThinking(true);
-    
+
     // Clear any existing timeout
     if (aiTimeoutRef.current) {
       clearTimeout(aiTimeoutRef.current);
     }
-    
+
     // Schedule AI move after a short delay
     aiTimeoutRef.current = setTimeout(() => {
       const aiMove = chessEngine.makeAiMove();
-      
+
       if (aiMove) {
         setLastMove(aiMove);
         updateGameState();
       }
-      
+
       setIsAiThinking(false);
     }, 500); // 500ms delay for better UX
-  };
+  }, [chessEngine, updateGameState]);
   
   // Reset game
   const resetGame = () => {
@@ -124,12 +124,12 @@ export const GameProvider = ({ children }) => {
   // Update selected strategies
   useEffect(() => {
     chessEngine.setSelectedStrategies(selectedStrategies);
-  }, [selectedStrategies]);
+  }, [selectedStrategies, chessEngine]);
   
   // Update strategy order
   useEffect(() => {
     chessEngine.setStrategyOrder(strategyOrder);
-  }, [strategyOrder]);
+  }, [strategyOrder, chessEngine]);
   
   // Get piece at a specific square
   const getPiece = (square) => {
@@ -150,7 +150,7 @@ export const GameProvider = ({ children }) => {
     if (playerColor === 'b' && currentTurn === 'w' && !isGameOver && gameState.moveCount === 0) {
       scheduleAiMove();
     }
-  }, [playerColor, currentTurn, isGameOver, gameState.moveCount]);
+  }, [playerColor, currentTurn, isGameOver, gameState.moveCount, scheduleAiMove]);
   
   return (
     <GameContext.Provider

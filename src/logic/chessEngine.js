@@ -278,29 +278,48 @@ class ChessEngine {
    * @returns {Array} Moves that control the square
    */
   getControllingMoves(color, targetSquare) {
-    const controllingMoves = [];
+    const temp = this.createTempGameForColor(color);
+    const pieceOnSquare = temp.get(targetSquare);
     
-    // Check all squares for pieces that can move to or capture on targetSquare
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        const square = String.fromCharCode(97 + j) + (8 - i);
-        const piece = this.game.get(square);
-        
-        if (piece && piece.color === color) {
-          const moves = this.game.moves({ 
-            square: square, 
-            verbose: true 
-          });
-          
-          const canControl = moves.some(move => move.to === targetSquare);
-          if (canControl) {
-            controllingMoves.push({ from: square, to: targetSquare });
-          }
-        }
-      }
+    // If square is empty, put a dummy opponent piece there to detect attacks
+    if (!pieceOnSquare) {
+      const opponentColor = color === 'w' ? 'b' : 'w';
+      temp.put({ type: 'q', color: opponentColor }, targetSquare);
     }
     
-    return controllingMoves;
+    const moves = temp.moves({ verbose: true });
+    return moves
+      .filter(m => m.to === targetSquare)
+      .map(m => ({ from: m.from, to: m.to }));
+  }
+
+  /**
+   * Create a temporary Chess instance with a safe FEN for a specific color.
+   * Clears en-passant to avoid invalid FENs and retries with castling cleared.
+   * @param {string} color - 'w' or 'b'
+   * @returns {Chess} Temporary Chess instance
+   */
+  createTempGameForColor(color) {
+    const baseParts = this.game.fen().split(' ');
+    const primaryParts = [...baseParts];
+
+    primaryParts[1] = color;
+    if (primaryParts.length > 3) {
+      primaryParts[3] = '-';
+    }
+
+    try {
+      return new Chess(primaryParts.join(' '));
+    } catch (error) {
+      const retryParts = [...primaryParts];
+      if (retryParts.length > 2) {
+        retryParts[2] = '-';
+      }
+      if (retryParts.length > 3) {
+        retryParts[3] = '-';
+      }
+      return new Chess(retryParts.join(' '));
+    }
   }
   
   /**
@@ -332,9 +351,9 @@ class ChessEngine {
    * @returns {boolean} True if white has castled
    */
   hasWhiteCastled() {
-    return this.history.some(move => 
-      move.color === 'w' && move.san === 'O-O' || move.san === 'O-O-O'
-    );
+    return this.history.some(move => (
+      move.color === 'w' && (move.san === 'O-O' || move.san === 'O-O-O')
+    ));
   }
   
   /**
@@ -342,9 +361,9 @@ class ChessEngine {
    * @returns {boolean} True if black has castled
    */
   hasBlackCastled() {
-    return this.history.some(move => 
-      move.color === 'b' && move.san === 'O-O' || move.san === 'O-O-O'
-    );
+    return this.history.some(move => (
+      move.color === 'b' && (move.san === 'O-O' || move.san === 'O-O-O')
+    ));
   }
   
   /**
@@ -632,7 +651,8 @@ class ChessEngine {
    * @returns {Object} The best move
    */
   getBestMove() {
-    console.time('AI move calculation');
+    // Performance logging (comment out in production)
+    // console.time('AI move calculation');
     this.positionsEvaluated = 0;
     
     // If it's not the AI's turn, return null
@@ -673,8 +693,9 @@ class ChessEngine {
       alpha = Math.max(alpha, bestValue);
     }
     
-    console.timeEnd('AI move calculation');
-    console.log(`Positions evaluated: ${this.positionsEvaluated}`);
+    // Performance logging (comment out in production)
+    // console.timeEnd('AI move calculation');
+    // console.log(`Positions evaluated: ${this.positionsEvaluated}`);
     
     return bestMove;
   }
@@ -889,10 +910,17 @@ class ChessEngine {
    * @returns {number} Number of threats
    */
   getThreats(square) {
-    const currentTurn = this.game.turn();
-    const opponentColor = currentTurn === 'w' ? 'b' : 'w';
-    
-    return this.getControllingMoves(opponentColor, square).length;
+    // Determine threats relative to the piece on the square.
+    // If the square is occupied, threats are opponent pieces that can move there.
+    // If the square is empty, report total attackers from both sides.
+    const piece = this.game.get(square);
+    if (piece) {
+      const opponentColor = piece.color === 'w' ? 'b' : 'w';
+      return this.getControllingMoves(opponentColor, square).length;
+    }
+
+    // Empty square: treat threats as black attacks
+    return this.getControllingMoves('b', square).length;
   }
   
   /**
@@ -901,9 +929,16 @@ class ChessEngine {
    * @returns {number} Number of shields
    */
   getShields(square) {
-    const currentTurn = this.game.turn();
-    
-    return this.getControllingMoves(currentTurn, square).length;
+    // Determine shields (defenders) relative to the piece on the square.
+    // If the square is occupied, shields are friendly pieces that can move there.
+    // If the square is empty, there are no shields.
+    const piece = this.game.get(square);
+    if (piece) {
+      return this.getControllingMoves(piece.color, square).length;
+    }
+
+    // Empty square: treat shields as white control
+    return this.getControllingMoves('w', square).length;
   }
   
   /**
