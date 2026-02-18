@@ -1,0 +1,31 @@
+chess-ai-react-app/
+├── public/
+│   ├── index.html               // The single-page HTML that bootstraps the React app.
+│   ├── favicon.ico              // Application icon.
+│   └── assets/                  // Contains static assets like images and icons (e.g., chess piece images).
+├── src/
+│   ├── components/              // Reusable UI components.
+│   │   ├── Board.js             // Renders the interactive chessboard and integrates drag-and-drop.
+│   │   ├── Square.js            // Represents each chess square; displays threat/shield tooltips.
+│   │   ├── MoveHistory.js       // (Optional) Lists past moves for player reference.
+│   │   ├── StrategySelector.js  // UI for choosing and ordering AI strategies via checkboxes and drag-and-drop.
+│   │   ├── AiControls.js        // Provides controls for AI parameters (e.g., search depth).
+│   │   └── Tooltip.js           // A generic tooltip component to display additional square info.
+│   ├── logic/                   // Contains core game logic and AI algorithms.
+│   │   ├── chessEngine.js       // Implements the chess rules and AI move generation (minimax/alpha-beta pruning).
+│   │   ├── threatShieldCalc.js  // Calculates threat and shield counters for each square on the board.
+│   │   └── evaluation.js        // Evaluates board positions using selected strategies to score moves.
+│   ├── context/                 // React Contexts to share state across the app.
+│   │   └── GameContext.js       // Provides global game state and dispatch methods (e.g., game moves, resets).
+│   ├── hooks/                   // Custom React hooks for encapsulating reusable logic.
+│   │   └── useChessGame.js      // Encapsulates game logic, state management, and AI move handling.
+│   ├── utils/                   // Utility functions and helper methods.
+│   │   └── helpers.js           // General purpose functions (e.g., coordinate conversion, validation).
+│   ├── App.js                   // Main app component that assembles the layout.
+│   ├── index.js                 // Entry point; renders the App and initializes global providers.
+│   └── styles/                  // CSS/SCSS files.
+│       ├── App.css              // Global styles.
+│       └── Board.css            // Styles specific to the chessboard and square components.
+├── package.json                 // Project configuration and dependency management.
+├── .gitignore                   // Specifies intentionally untracked files to ignore.
+└── README.md                    // Project overview, setup instructions, and feature descriptions.
