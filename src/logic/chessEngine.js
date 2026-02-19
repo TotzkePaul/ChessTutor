@@ -33,6 +33,9 @@ class ChessEngine {
     
     // For performance tracking
     this.positionsEvaluated = 0;
+    
+    // Transposition table for caching position evaluations
+    this.transpositionTable = new Map();
   }
 
   /**
@@ -187,13 +190,16 @@ class ChessEngine {
     // Calculate material balance
     let score = this.getMaterialScore();
     
-    // Apply strategies based on selection and priority
-    this.strategyOrder.forEach((strategy, index) => {
-      if (this.selectedStrategies.includes(strategy)) {
-        const weight = 1 - (index * 0.1); // Higher priority = higher weight
-        score += this.getStrategyScore(strategy) * weight;
-      }
-    });
+    // Only apply strategies if they are selected (to save computation)
+    if (this.selectedStrategies.length > 0) {
+      // Apply strategies based on selection and priority
+      this.strategyOrder.forEach((strategy, index) => {
+        if (this.selectedStrategies.includes(strategy)) {
+          const weight = 1 - (index * 0.1); // Higher priority = higher weight
+          score += this.getStrategyScore(strategy) * weight;
+        }
+      });
+    }
     
     // Return score from perspective of current player
     return this.game.turn() === this.aiColor ? score : -score;
@@ -655,6 +661,9 @@ class ChessEngine {
     // console.time('AI move calculation');
     this.positionsEvaluated = 0;
     
+    // Clear transposition table for a fresh search
+    this.transpositionTable.clear();
+    
     // If it's not the AI's turn, return null
     if (this.game.turn() !== this.aiColor) {
       return null;
@@ -737,6 +746,36 @@ class ChessEngine {
   }
   
   /**
+   * Sort moves for minimax (faster version without strategy overhead)
+   * @param {Array} moves - Available moves
+   * @returns {Array} Sorted moves
+   */
+  sortMovesForMinimax(moves) {
+    // Simple but effective move ordering for alpha-beta pruning
+    return moves.sort((a, b) => {
+      // 1. Prioritize captures (MVV-LVA: Most Valuable Victim - Least Valuable Attacker)
+      if (a.captured && !b.captured) return -1;
+      if (!a.captured && b.captured) return 1;
+      if (a.captured && b.captured) {
+        const aScore = this.pieceValues[a.captured] * 10 - this.pieceValues[a.piece];
+        const bScore = this.pieceValues[b.captured] * 10 - this.pieceValues[b.piece];
+        if (aScore !== bScore) return bScore - aScore;
+      }
+      
+      // 2. Prioritize checks
+      // We can't easily detect checks without making the move, so skip for performance
+      
+      // 3. Prioritize center moves
+      const centralSquares = ['d4', 'e4', 'd5', 'e5'];
+      const aIsCentral = centralSquares.includes(a.to) ? 1 : 0;
+      const bIsCentral = centralSquares.includes(b.to) ? 1 : 0;
+      if (aIsCentral !== bIsCentral) return bIsCentral - aIsCentral;
+      
+      return 0;
+    });
+  }
+  
+  /**
    * Score a move based on a specific strategy
    * @param {Object} move - Move to evaluate
    * @param {string} strategy - Strategy to apply
@@ -808,13 +847,32 @@ class ChessEngine {
   minimax(depth, alpha, beta, isMaximizingPlayer) {
     this.positionsEvaluated++;
     
+    // Check transposition table
+    const fen = this.game.fen();
+    const tableKey = `${fen}_${depth}`;
+    if (this.transpositionTable.has(tableKey)) {
+      return this.transpositionTable.get(tableKey);
+    }
+    
     // Check terminal states
-    if (depth === 0 || this.game.isGameOver()) {
-      return this.evaluatePosition();
+    if (this.game.isGameOver()) {
+      const evaluation = this.evaluatePosition();
+      this.transpositionTable.set(tableKey, evaluation);
+      return evaluation;
+    }
+    
+    // At leaf nodes, use quiescence search to avoid horizon effect
+    if (depth === 0) {
+      const evaluation = this.quiescence(alpha, beta, isMaximizingPlayer);
+      this.transpositionTable.set(tableKey, evaluation);
+      return evaluation;
     }
     
     // Get all legal moves
-    const moves = this.game.moves({ verbose: true });
+    let moves = this.game.moves({ verbose: true });
+    
+    // Sort moves for better alpha-beta pruning
+    moves = this.sortMovesForMinimax(moves);
     
     if (isMaximizingPlayer) {
       let maxEval = -Infinity;
@@ -841,6 +899,7 @@ class ChessEngine {
         }
       }
       
+      this.transpositionTable.set(tableKey, maxEval);
       return maxEval;
     } else {
       let minEval = Infinity;
@@ -864,6 +923,99 @@ class ChessEngine {
         // Alpha-beta pruning
         if (beta <= alpha) {
           break;
+        }
+      }
+      
+      this.transpositionTable.set(tableKey, minEval);
+      return minEval;
+    }
+  }
+  
+  /**
+   * Quiescence search to avoid horizon effect
+   * Only searches tactical moves (captures) at leaf nodes
+   * @param {number} alpha - Alpha value for pruning
+   * @param {number} beta - Beta value for pruning
+   * @param {boolean} isMaximizingPlayer - Whether current player is maximizing
+   * @returns {number} Evaluation score
+   */
+  quiescence(alpha, beta, isMaximizingPlayer) {
+    this.positionsEvaluated++;
+    
+    // Stand pat score (current position evaluation)
+    const standPat = this.evaluatePosition();
+    
+    // Check for game over
+    if (this.game.isGameOver()) {
+      return standPat;
+    }
+    
+    if (isMaximizingPlayer) {
+      // Beta cutoff
+      if (standPat >= beta) {
+        return beta;
+      }
+      // Update alpha
+      if (standPat > alpha) {
+        alpha = standPat;
+      }
+    } else {
+      // Alpha cutoff
+      if (standPat <= alpha) {
+        return alpha;
+      }
+      // Update beta
+      if (standPat < beta) {
+        beta = standPat;
+      }
+    }
+    
+    // Only consider captures and checks (tactical moves)
+    const allMoves = this.game.moves({ verbose: true });
+    const tacticalMoves = allMoves.filter(move => move.captured);
+    
+    // If no tactical moves, return stand pat
+    if (tacticalMoves.length === 0) {
+      return standPat;
+    }
+    
+    // Sort tactical moves (MVV-LVA)
+    tacticalMoves.sort((a, b) => {
+      const aScore = this.pieceValues[a.captured] * 10 - this.pieceValues[a.piece];
+      const bScore = this.pieceValues[b.captured] * 10 - this.pieceValues[b.piece];
+      return bScore - aScore;
+    });
+    
+    if (isMaximizingPlayer) {
+      let maxEval = standPat;
+      
+      for (let i = 0; i < tacticalMoves.length; i++) {
+        this.game.move(tacticalMoves[i]);
+        const evaluation = this.quiescence(alpha, beta, false);
+        this.game.undo();
+        
+        maxEval = Math.max(maxEval, evaluation);
+        alpha = Math.max(alpha, evaluation);
+        
+        if (beta <= alpha) {
+          break; // Beta cutoff
+        }
+      }
+      
+      return maxEval;
+    } else {
+      let minEval = standPat;
+      
+      for (let i = 0; i < tacticalMoves.length; i++) {
+        this.game.move(tacticalMoves[i]);
+        const evaluation = this.quiescence(alpha, beta, true);
+        this.game.undo();
+        
+        minEval = Math.min(minEval, evaluation);
+        beta = Math.min(beta, evaluation);
+        
+        if (beta <= alpha) {
+          break; // Alpha cutoff
         }
       }
       
