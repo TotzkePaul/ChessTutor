@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChessGame } from '../hooks/useChessGame';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import '../styles/Board.css';
+import { STRATEGIES } from '../logic/strategies';
 
 /**
  * Component for selecting and ordering AI strategies
@@ -19,17 +20,6 @@ const StrategySelector = () => {
     setStrategyOrder,
     isAiThinking
   } = useChessGame();
-  // Define available strategies
-  const availableStrategies = [
-    'Control center',
-    'Develop knights before bishops',
-    'Castle early',
-    'Avoid moving the same piece twice',
-    'Connect your rooks',
-    "Don't bring your queen out too early",
-    "Don't trade without a purpose"
-  ];
-  
   // Initialize local state to track selections
   const [selections, setSelections] = useState(new Set(selectedStrategies));
   
@@ -88,20 +78,23 @@ const StrategySelector = () => {
   
   return (
     <div className="strategy-selector">
-      <h3>Basic Strategy Hints</h3>
+      <h3>Strategy Hints</h3>
+      <p className="hint-text">Select principles for the computer to favor. These are guidelines; tactics and king safety still matter.</p>
       
       {/* Strategy checkboxes */}
       <div className="strategy-checkboxes">
-        {availableStrategies.map((strategy) => (
+        {STRATEGIES.map(({ name: strategy, hint }, index) => (
           <div key={strategy} className="strategy-checkbox">
             <label>
               <input
                 type="checkbox"
+                aria-label={strategy}
+                aria-describedby={`strategy-hint-${index}`}
                 checked={selections.has(strategy)}
                 onChange={() => handleStrategyToggle(strategy)}
                 disabled={isAiThinking || isDragging}
               />
-              {strategy}
+              <span className="strategy-copy"><span>{strategy}</span><small id={`strategy-hint-${index}`}>{hint}</small></span>
             </label>
           </div>
         ))}
@@ -112,7 +105,7 @@ const StrategySelector = () => {
           becomes empty during updates (e.g., toggling checkboxes). */}
       <div className="strategy-ordering">
         <h4>Strategy Priority (Drag to reorder)</h4>
-        <p className="hint-text">Higher items have priority when evaluating equal positions</p>
+        <p className="hint-text">Higher items have more influence on the computer’s position evaluation</p>
 
   <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
           <Droppable droppableId="strategy-list">

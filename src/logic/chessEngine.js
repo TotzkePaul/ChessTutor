@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import { additionalStrategyScore } from './strategies';
 
 /**
  * Chess Engine - Manages game state and AI logic
@@ -201,7 +202,7 @@ class ChessEngine {
       // Apply strategies based on selection and priority
       this.strategyOrder.forEach((strategy, index) => {
         if (this.activeStrategySet.has(strategy)) {
-          const weight = 1 - (index * 0.1); // Higher priority = higher weight
+          const weight = 1 / (1 + index * 0.2); // Higher priority = higher weight
           score += this.getStrategyScore(strategy) * weight;
         }
       });
@@ -255,7 +256,7 @@ class ChessEngine {
       case "Don't trade without a purpose":
         return this.getPurposefulTradeScore();
       default:
-        return 0;
+        return additionalStrategyScore(this.game, strategy, this.pieceValues);
     }
   }
   
@@ -726,7 +727,7 @@ class ChessEngine {
       
       this.strategyOrder.forEach((strategy, index) => {
         if (this.activeStrategySet.has(strategy)) {
-          const weight = 1 - (index * 0.1);
+          const weight = 1 / (1 + index * 0.2);
           aScore += this.getMovePriorityScore(a, strategy) * weight;
           bScore += this.getMovePriorityScore(b, strategy) * weight;
         }

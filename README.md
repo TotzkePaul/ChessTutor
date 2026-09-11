@@ -8,9 +8,15 @@ The production app is built in `build/`. On Windows, double-click **Start Chess 
 
 To rebuild after changing the source, run `npm run build`. A fresh checkout needs `npm ci` once while online before building. The offline launcher itself uses only Node's built-in libraries.
 
+## GitHub Pages
+
+Pushing to `main` runs the GitHub Actions deployment workflow. It tests and builds the app, then publishes `build/` to the `gh-pages` branch. In the repository settings, choose **Pages → Deploy from a branch → gh-pages / (root)** once; the app will then be available at `https://totzkepaul.github.io/ChessTutor/`.
+
 Wait for **Ready for offline play** on the first visit. The browser then caches the app and AI worker, so it can reload at the same address even with the local server stopped. Clearing browser storage removes this cache; launch the local server again to restore it. Games currently restart on page reload. After rebuilding, close all app tabs and reopen to activate an updated cached version.
 
 ## Square counters and AI speed
+
+The Play panel includes an **Opening** dropdown with nine practice openings and **Standard game**. Select an opening to preview its moves, then press **New game** to load the position. The opening moves appear in move history, and the computer continues automatically when it is its turn. Opening practice works offline.
 
 - Every square displays a **sword** (enemy attacks) and **shield** (friendly defenders), including zeros. Occupied squares use the occupying piece's color; empty squares use your chosen color.
 - Counts represent geometric attacks, including pinned pieces. Pawn forward moves and castling are not attacks; sliding pieces stop at the first blocker. These counts describe control, not a guarantee that a capture is legal or safe.
@@ -38,6 +44,14 @@ The AI considers the following basic chess strategies:
 5. **Connect your rooks** - Works to connect rooks by moving pieces out of the back rank
 6. **Don't bring your queen out too early** - Avoids early queen development
 7. **Don't trade without a purpose** - Avoids unnecessary piece trades
+8. **Protect hanging pieces** - Penalizes attacked pieces with no defenders
+9. **Develop all minor pieces** - Encourages knights and bishops off the back rank
+10. **Put rooks on open files** - Rewards open and semi-open files
+11. **Keep the bishop pair** - Rewards bishops covering both square colors
+12. **Keep pawns connected** - Discourages isolated and doubled pawns
+13. **Advance passed pawns** - Encourages advancing pawns without opposing pawns ahead on neighboring files
+
+Each hint includes a short explanation in the strategy panel. Selected hints influence the AI's evaluation; higher priorities receive more weight, and all priorities remain positive.
 
 ## Technical Details
 

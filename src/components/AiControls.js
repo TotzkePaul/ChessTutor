@@ -1,5 +1,6 @@
 import React from 'react';
 import ChessIcon from './ChessIcon';
+import { OPENINGS, openingLine } from '../logic/openings';
 import { useChessGame } from '../hooks/useChessGame';
 import '../styles/Board.css';
 
@@ -14,10 +15,13 @@ const AiControls = () => {
     playerColor,
     setPlayerColor,
     resetGame,
+    openingId,
+    setOpeningId,
     isAiThinking,
     gameState,
     isGameOver
   } = useChessGame();
+  const opening = OPENINGS.find(item => item.id === openingId) || OPENINGS[0];
 
   // Handle search depth change
   const handleDepthChange = (e) => {
@@ -34,6 +38,16 @@ const AiControls = () => {
   return (
     <div className="ai-controls">
       <h3 className="play-heading"><ChessIcon kind="play" /> Play <span>vs computer</span></h3>
+
+      <div className="control-group">
+        <label htmlFor="opening">Opening</label>
+        <select id="opening" value={openingId} onChange={event => setOpeningId(event.target.value)}
+          disabled={isAiThinking} aria-describedby="opening-help opening-line">
+          {OPENINGS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+        <p className="opening-line" id="opening-line">{openingLine(opening) || 'Start from the initial position.'}</p>
+        <p className="hint-text" id="opening-help">Choose an opening, then press New game to practice from that position.</p>
+      </div>
       
       {/* Search depth control */}
       <div className="control-group">

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChessEngine from '../logic/chessEngine';
 import { createChessWorker } from '../workers/workerFactory';
+import { OPENINGS } from '../logic/openings';
 
 // Create context
 export const GameContext = createContext();
@@ -24,6 +25,7 @@ export const GameProvider = ({ children }) => {
   const [currentTurn, setCurrentTurn] = useState('w');
   // AI settings
   const [searchDepth, setSearchDepth] = useState(3);
+  const [openingId, setOpeningId] = useState('standard');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [selectedStrategies, setSelectedStrategies] = useState([
     'Control center',
@@ -194,12 +196,15 @@ export const GameProvider = ({ children }) => {
     }
     setIsAiThinking(false);
     chessEngine.resetGame();
+    const opening = OPENINGS.find(item => item.id === openingId) || OPENINGS[0];
+    let openingMove = null;
+    for (const move of opening.moves) openingMove = chessEngine.makeMove(move);
     setSelectedSquare(null);
-    setLastMove(null);
+    setLastMove(openingMove);
     updateGameState();
     
-    // If player is black, AI (white) should make first move
-    if (chessEngine.playerColor === 'b') {
+    // Continue from the opening with whichever side is next to move.
+    if (chessEngine.game.turn() === chessEngine.aiColor) {
       scheduleAiMove();
     }
   };
@@ -261,6 +266,8 @@ export const GameProvider = ({ children }) => {
         currentTurn,
         makeMove,
         resetGame,
+        openingId,
+        setOpeningId,
         getPiece,
         getThreatShieldCount,
         searchDepth,

@@ -477,6 +477,9 @@
 .play-heading .chess-icon { color: #658851; width: 22px; height: 22px; }
 .control-group { margin-bottom: 18px; }
 .control-group label { font-size: 13px; }
+.control-group select { width: 100%; padding: 10px 12px; border: 1px solid #cad6c6; border-radius: 8px; background: #f7faf4; color: #24362f; font: inherit; font-size: 14px; }
+.control-group select:focus-visible { outline: 2px solid #547a51; outline-offset: 2px; }
+.opening-line { font-size: 12px; line-height: 1.6; color: #456247; margin: 8px 0; }
 #search-depth { width: 100%; accent-color: #547a51; }
 .color-btn { padding: 10px; border-radius: 8px; font-weight: 600; }
 .color-btn.selected, .color-btn.selected:hover:not([disabled]) { background: #e5edde; color: #264b31; border-color: #9bb18c; }
@@ -490,6 +493,11 @@
 .strategy-item { border-color: #e1e6dd; border-radius: 8px; }
 .strategy-priority { background: #e6eedf; color: #365c40; }
 .strategy-checkbox input { accent-color: #547a51; }
+.strategy-checkbox { padding: 10px; border: 1px solid #e7ece2; border-radius: 9px; align-items: flex-start; }
+.strategy-checkbox label { align-items: flex-start; width: 100%; gap: 6px; }
+.strategy-checkbox input { margin-top: 4px; flex-shrink: 0; }
+.strategy-copy { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
+.strategy-copy small { font-size: 12px; font-weight: 400; line-height: 1.5; color: #69766e; }
 .app-footer { background: transparent; color: #7b857e; padding: 12px 20px 24px; font-size: 12px; }
 @media (max-width: 760px) {
   .app-header { padding: 18px; gap: 12px; flex-wrap: wrap; }
