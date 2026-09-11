@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const root = path.resolve(__dirname, '../build');
+const publicPath = '/ChessTutor';
 if (!fs.existsSync(path.join(root, 'service-worker.js'))) {
   console.error('Build the offline app first: npm run build');
   process.exit(1);
@@ -11,7 +12,12 @@ http.createServer((req, res) => {
   let name;
   try { name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400).end(); return; }
-  const file = path.resolve(root, '.' + (name === '/' ? '/index.html' : name));
+  // The production bundle uses the GitHub Pages project path. Serve that path
+  // locally too, while keeping the root URL convenient for the desktop launcher.
+  const relativeName = name === '/' ? '/index.html' :
+    (name === publicPath || name === `${publicPath}/` ? '/index.html' :
+      name.startsWith(`${publicPath}/`) ? name.slice(publicPath.length) : name);
+  const file = path.resolve(root, '.' + relativeName);
   if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
   fs.readFile(file, (error, data) => {
     if (error) { res.writeHead(404).end('Not found'); return; }
