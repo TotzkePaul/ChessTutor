@@ -1,4 +1,5 @@
 import React from 'react';
+import OfflineStatus from './components/OfflineStatus';
 import './App.css';
 import './styles/Board.css';
 import Board from './components/Board';
@@ -13,6 +14,7 @@ function App() {
       <div className="app">
         <header className="app-header">
           <h1>Chess AI Tutor</h1>
+          <OfflineStatus />
         </header>
         
         <main className="app-content">
@@ -22,12 +24,11 @@ function App() {
             </div>
             
             <div className="game-info">
-              <div className="move-history-section">
-                <MoveHistory />
-              </div>
-              
               <div className="ai-controls-section">
                 <AiControls />
+              </div>
+              <div className="move-history-section">
+                <MoveHistory />
               </div>
             </div>
           </div>
@@ -39,8 +40,7 @@ function App() {
         
         <footer className="app-footer">
           <p>
-            Chess AI Tutor - A React application featuring adjustable AI strategies
-            and chess position analysis
+            Learn the board. See the threats. Find your next move.
           </p>
         </footer>
       </div>

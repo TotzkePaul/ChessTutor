@@ -1,5 +1,14 @@
 # Goals for ChessTutor
 
+## Offline milestone — September 10, 2026
+
+- Production app and AI worker are cached for offline use; Windows launcher and `npm run offline` serve the prebuilt app locally without network dependencies.
+- All 64 squares display threat/shield counters. Friendly occupied defenders and empty-square player perspective are corrected using attack detection.
+- AI evaluates consistently from its own color and searches in a worker with iterative deepening and level-specific time budgets (150–2,000 ms).
+- Added promotion choices, board rotation for Black, and stale-worker-reply protection on reset.
+- Verification: 19 tests passing; production build successful; browser reload and AI opening verified with the local server stopped.
+- Follow-up: saving games across page reloads, richer tutoring explanations, and modernization of the existing drag-and-drop dependencies.
+
 ## Summary
 This document captures the short- and medium-term goals for the ChessTutor project, success criteria, an initial bug-triage strategy, and immediate next steps. The repository is a React-based chess tutoring app (UI + simple AI + evaluation logic). 
 

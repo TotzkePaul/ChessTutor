@@ -1,4 +1,5 @@
 import React from 'react';
+import ChessIcon from './ChessIcon';
 import { useChessGame } from '../hooks/useChessGame';
 import '../styles/Board.css';
 
@@ -32,11 +33,11 @@ const AiControls = () => {
 
   return (
     <div className="ai-controls">
-      <h3>AI Settings</h3>
+      <h3 className="play-heading"><ChessIcon kind="play" /> Play <span>vs computer</span></h3>
       
       {/* Search depth control */}
       <div className="control-group">
-        <label htmlFor="search-depth">Search Depth: {searchDepth}</label>
+        <label htmlFor="search-depth">Difficulty: {searchDepth} / 5</label>
         <div className="slider-container">
           <input
             type="range"
@@ -91,7 +92,7 @@ const AiControls = () => {
           onClick={resetGame}
           disabled={isAiThinking}
         >
-          Reset Game
+          <ChessIcon kind="play" /> New game
         </button>
       </div>
       

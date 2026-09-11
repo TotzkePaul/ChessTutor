@@ -1,5 +1,6 @@
 import React from 'react';
 import Tooltip from './Tooltip';
+import ChessIcon from './ChessIcon';
 import '../styles/Board.css';
 
 /**
@@ -12,9 +13,10 @@ const Square = ({
   isDark, // Whether this is a dark square
   isSelected, // Whether this square is currently selected
   isLastMove, // Whether this square was part of the last move
-  threatShieldData, // Object with { threats: number, shields: number }
+  getThreatShieldData, // Function returning { threats: number, shields: number }
   onClick // Handler for clicking on this square
 }) => {
+  const counts = getThreatShieldData(square);
   const squareClass = `
     square 
     ${isDark ? 'square-dark' : 'square-light'} 
@@ -39,21 +41,43 @@ const Square = ({
   };
   
   // Format tooltip content
-  const tooltipContent = threatShieldData ? (
-    <div className="square-info">
-      <div className="threat-counter">Threats: {threatShieldData.threats}</div>
-      <div className="shield-counter">Shields: {threatShieldData.shields}</div>
-    </div>
-  ) : null;
+  const renderTooltipContent = () => {
+    const threatShieldData = getThreatShieldData ? getThreatShieldData(square) : null;
+
+    if (!threatShieldData) {
+      return null;
+    }
+
+    return (
+      <div className="square-info">
+        <div className="threat-counter">Attacks: {threatShieldData.threats}</div>
+        <div className="shield-counter">Defenders: {threatShieldData.shields}</div>
+      </div>
+    );
+  };
   
   return (
-    <Tooltip content={tooltipContent}>
+    <Tooltip content={renderTooltipContent}>
       <div 
         className={squareClass}
         onClick={() => onClick(square)}
         data-square={square}
+        role="button"
+        tabIndex={0}
+        aria-label={`${square}, attacks ${counts.threats}, defenders ${counts.shields}`}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onClick(square);
+          }
+        }}
       >
-        <div className="piece">{getPieceDisplay()}</div>
+        <span className="square-coordinate">{square}</span>
+        <span className="square-counters" aria-hidden="true">
+          <span className={`threat-badge ${counts.threats === 0 ? "counter-zero" : ""}`}><ChessIcon kind="attack" />{counts.threats}</span>
+          <span className={`shield-badge ${counts.shields === 0 ? "counter-zero" : ""}`}><ChessIcon kind="defend" />{counts.shields}</span>
+        </span>
+        <div className={`piece piece-${piece?.color || "empty"}`}>{getPieceDisplay()}</div>
       </div>
     </Tooltip>
   );

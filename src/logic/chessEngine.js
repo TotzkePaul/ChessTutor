@@ -36,6 +36,11 @@ class ChessEngine {
     
     // Transposition table for caching position evaluations
     this.transpositionTable = new Map();
+
+    // Reused constants to avoid per-node allocations during search
+    this.centralSquares = new Set(['d4', 'e4', 'd5', 'e5']);
+    this.activeStrategySet = new Set();
+    this.maxQuiescenceDepth = 4;
   }
 
   /**
@@ -123,7 +128,7 @@ class ChessEngine {
       isInsufficientMaterial: this.game.isInsufficientMaterial(),
       halfMoveClock: this.game.halfMoves,
       fullMoveNumber: this.game.moveNumber,
-      history: this.history,
+      history: [...this.history],
       moveCount: this.moveCount,
     };
   }
@@ -162,6 +167,7 @@ class ChessEngine {
    */
   setSelectedStrategies(strategies) {
     this.selectedStrategies = strategies;
+    this.activeStrategySet = new Set(strategies);
   }
   
   /**
@@ -194,7 +200,7 @@ class ChessEngine {
     if (this.selectedStrategies.length > 0) {
       // Apply strategies based on selection and priority
       this.strategyOrder.forEach((strategy, index) => {
-        if (this.selectedStrategies.includes(strategy)) {
+        if (this.activeStrategySet.has(strategy)) {
           const weight = 1 - (index * 0.1); // Higher priority = higher weight
           score += this.getStrategyScore(strategy) * weight;
         }
@@ -202,7 +208,7 @@ class ChessEngine {
     }
     
     // Return score from perspective of current player
-    return this.game.turn() === this.aiColor ? score : -score;
+    return this.aiColor === 'w' ? score : -score;
   }
   
   /**
@@ -211,17 +217,19 @@ class ChessEngine {
    */
   getMaterialScore() {
     let score = 0;
-    // Loop through the board
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        const square = String.fromCharCode(97 + j) + (8 - i);
-        const piece = this.game.get(square);
+    const board = this.game.board();
+
+    for (let i = 0; i < board.length; i++) {
+      const rank = board[i];
+      for (let j = 0; j < rank.length; j++) {
+        const piece = rank[j];
         if (piece) {
           const value = this.pieceValues[piece.type];
           score += piece.color === 'w' ? value : -value;
         }
       }
     }
+
     return score;
   }
   
@@ -256,10 +264,9 @@ class ChessEngine {
    * @returns {number} Center control score
    */
   getCenterControlScore() {
-    const centralSquares = ['d4', 'e4', 'd5', 'e5'];
     let score = 0;
     
-    centralSquares.forEach(square => {
+    this.centralSquares.forEach(square => {
       // Check if a piece controls this square
       const whiteMoves = this.getControllingMoves('w', square);
       const blackMoves = this.getControllingMoves('b', square);
@@ -284,19 +291,7 @@ class ChessEngine {
    * @returns {Array} Moves that control the square
    */
   getControllingMoves(color, targetSquare) {
-    const temp = this.createTempGameForColor(color);
-    const pieceOnSquare = temp.get(targetSquare);
-    
-    // If square is empty, put a dummy opponent piece there to detect attacks
-    if (!pieceOnSquare) {
-      const opponentColor = color === 'w' ? 'b' : 'w';
-      temp.put({ type: 'q', color: opponentColor }, targetSquare);
-    }
-    
-    const moves = temp.moves({ verbose: true });
-    return moves
-      .filter(m => m.to === targetSquare)
-      .map(m => ({ from: m.from, to: m.to }));
+    return this.game.attackers(targetSquare, color).map(from => ({ from, to: targetSquare }));
   }
 
   /**
@@ -656,59 +651,55 @@ class ChessEngine {
    * Get the best move for the AI
    * @returns {Object} The best move
    */
-  getBestMove() {
-    // Performance logging (comment out in production)
-    // console.time('AI move calculation');
+  getBestMove({ timeLimitMs = [0, 150, 350, 800, 1400, 2000][this.searchDepth] } = {}) {
     this.positionsEvaluated = 0;
-    
-    // Clear transposition table for a fresh search
+    this.completedDepth = 0;
     this.transpositionTable.clear();
-    
-    // If it's not the AI's turn, return null
-    if (this.game.turn() !== this.aiColor) {
-      return null;
-    }
-    
-    // Get all legal moves
-    let moves = this.game.moves({ verbose: true });
-    
-    // Sort moves based on selected strategies for better pruning
-    moves = this.sortMovesByPriority(moves);
-    
-    let bestMove = null;
-    let bestValue = -Infinity;
-    let alpha = -Infinity;
-    let beta = Infinity;
-    
-    // Iterate through all possible moves
-    for (let i = 0; i < moves.length; i++) {
-      const move = moves[i];
-      
-      // Make the move
-      this.game.move(move);
-      
-      // Get evaluation from minimax
-      const value = this.minimax(this.searchDepth - 1, alpha, beta, false);
-      
-      // Undo the move
-      this.game.undo();
-      
-      // Update best move if better evaluation found
-      if (value > bestValue) {
-        bestValue = value;
-        bestMove = move;
+    if (this.game.turn() !== this.aiColor || this.game.isGameOver()) return null;
+    const started = performance.now();
+    this.searchDeadline = started + timeLimitMs;
+    let moves = this.sortMovesByPriority(this.game.moves({ verbose: true }));
+    let bestMove = moves[0]; // A legal fallback even if the first iteration times out.
+    try {
+      for (let depth = 1; depth <= this.searchDepth; depth++) {
+        let bestValue = -Infinity;
+        let iterationMove = bestMove;
+        let alpha = -Infinity;
+        for (const move of moves) {
+          this.checkSearchDeadline();
+          this.game.move(move);
+          let value;
+          try {
+            value = this.minimax(depth - 1, alpha, Infinity, false);
+          } finally {
+            this.game.undo();
+          }
+          if (value > bestValue) {
+            bestValue = value;
+            iterationMove = move;
+          }
+          alpha = Math.max(alpha, value);
+        }
+        bestMove = iterationMove;
+        this.completedDepth = depth;
+        moves = [iterationMove, ...moves.filter(move => move !== iterationMove)];
       }
-      
-      alpha = Math.max(alpha, bestValue);
+    } catch (error) {
+      if (error !== this.searchTimeout) throw error;
+    } finally {
+      this.searchDeadline = Infinity;
+      this.searchTimeMs = performance.now() - started;
     }
-    
-    // Performance logging (comment out in production)
-    // console.timeEnd('AI move calculation');
-    // console.log(`Positions evaluated: ${this.positionsEvaluated}`);
-    
     return bestMove;
   }
-  
+
+  checkSearchDeadline() {
+    if (performance.now() >= this.searchDeadline) {
+      this.searchTimeout = this.searchTimeout || new Error('Search time limit');
+      throw this.searchTimeout;
+    }
+  }
+
   /**
    * Sort moves based on strategy priorities
    * @param {Array} moves - Available moves
@@ -734,7 +725,7 @@ class ChessEngine {
       let bScore = 0;
       
       this.strategyOrder.forEach((strategy, index) => {
-        if (this.selectedStrategies.includes(strategy)) {
+        if (this.activeStrategySet.has(strategy)) {
           const weight = 1 - (index * 0.1);
           aScore += this.getMovePriorityScore(a, strategy) * weight;
           bScore += this.getMovePriorityScore(b, strategy) * weight;
@@ -766,9 +757,8 @@ class ChessEngine {
       // We can't easily detect checks without making the move, so skip for performance
       
       // 3. Prioritize center moves
-      const centralSquares = ['d4', 'e4', 'd5', 'e5'];
-      const aIsCentral = centralSquares.includes(a.to) ? 1 : 0;
-      const bIsCentral = centralSquares.includes(b.to) ? 1 : 0;
+      const aIsCentral = this.centralSquares.has(a.to) ? 1 : 0;
+      const bIsCentral = this.centralSquares.has(b.to) ? 1 : 0;
       if (aIsCentral !== bIsCentral) return bIsCentral - aIsCentral;
       
       return 0;
@@ -784,8 +774,7 @@ class ChessEngine {
   getMovePriorityScore(move, strategy) {
     switch(strategy) {
       case 'Control center':
-        const centralSquares = ['d4', 'e4', 'd5', 'e5'];
-        return centralSquares.includes(move.to) ? 10 : 0;
+        return this.centralSquares.has(move.to) ? 10 : 0;
         
       case 'Develop knights before bishops':
         if (this.moveCount < 10 && move.piece === 'n') {
@@ -845,26 +834,45 @@ class ChessEngine {
    * @returns {number} Evaluation score
    */
   minimax(depth, alpha, beta, isMaximizingPlayer) {
+    this.checkSearchDeadline();
     this.positionsEvaluated++;
+
+    const alphaOriginal = alpha;
+    const betaOriginal = beta;
     
     // Check transposition table
-    const fen = this.game.fen();
-    const tableKey = `${fen}_${depth}`;
-    if (this.transpositionTable.has(tableKey)) {
-      return this.transpositionTable.get(tableKey);
+    const tableKey = this.game.fen();
+    const cached = this.transpositionTable.get(tableKey);
+    if (cached && cached.depth >= depth) {
+      if (cached.flag === 'exact') {
+        return cached.score;
+      }
+
+      if (cached.flag === 'lowerbound') {
+        alpha = Math.max(alpha, cached.score);
+      } else if (cached.flag === 'upperbound') {
+        beta = Math.min(beta, cached.score);
+      }
+
+      if (alpha >= beta) {
+        return cached.score;
+      }
     }
     
     // Check terminal states
     if (this.game.isGameOver()) {
       const evaluation = this.evaluatePosition();
-      this.transpositionTable.set(tableKey, evaluation);
+      this.transpositionTable.set(tableKey, {
+        depth,
+        score: evaluation,
+        flag: 'exact'
+      });
       return evaluation;
     }
     
     // At leaf nodes, use quiescence search to avoid horizon effect
     if (depth === 0) {
-      const evaluation = this.quiescence(alpha, beta, isMaximizingPlayer);
-      this.transpositionTable.set(tableKey, evaluation);
+      const evaluation = this.quiescence(alpha, beta, isMaximizingPlayer, 0);
       return evaluation;
     }
     
@@ -882,10 +890,8 @@ class ChessEngine {
         this.game.move(moves[i]);
         
         // Recursive evaluation
-        const evaluation = this.minimax(depth - 1, alpha, beta, false);
-        
-        // Undo the move
-        this.game.undo();
+        let evaluation;
+        try { evaluation = this.minimax(depth - 1, alpha, beta, false); } finally { this.game.undo(); }
         
         // Update max evaluation
         maxEval = Math.max(maxEval, evaluation);
@@ -899,7 +905,13 @@ class ChessEngine {
         }
       }
       
-      this.transpositionTable.set(tableKey, maxEval);
+      const flag = maxEval <= alphaOriginal ? 'upperbound' :
+        maxEval >= betaOriginal ? 'lowerbound' : 'exact';
+      this.transpositionTable.set(tableKey, {
+        depth,
+        score: maxEval,
+        flag
+      });
       return maxEval;
     } else {
       let minEval = Infinity;
@@ -909,10 +921,8 @@ class ChessEngine {
         this.game.move(moves[i]);
         
         // Recursive evaluation
-        const evaluation = this.minimax(depth - 1, alpha, beta, true);
-        
-        // Undo the move
-        this.game.undo();
+        let evaluation;
+        try { evaluation = this.minimax(depth - 1, alpha, beta, true); } finally { this.game.undo(); }
         
         // Update min evaluation
         minEval = Math.min(minEval, evaluation);
@@ -926,7 +936,13 @@ class ChessEngine {
         }
       }
       
-      this.transpositionTable.set(tableKey, minEval);
+      const flag = minEval <= alphaOriginal ? 'upperbound' :
+        minEval >= betaOriginal ? 'lowerbound' : 'exact';
+      this.transpositionTable.set(tableKey, {
+        depth,
+        score: minEval,
+        flag
+      });
       return minEval;
     }
   }
@@ -939,7 +955,8 @@ class ChessEngine {
    * @param {boolean} isMaximizingPlayer - Whether current player is maximizing
    * @returns {number} Evaluation score
    */
-  quiescence(alpha, beta, isMaximizingPlayer) {
+  quiescence(alpha, beta, isMaximizingPlayer, depth = 0) {
+    this.checkSearchDeadline();
     this.positionsEvaluated++;
     
     // Stand pat score (current position evaluation)
@@ -949,8 +966,13 @@ class ChessEngine {
     if (this.game.isGameOver()) {
       return standPat;
     }
+
+    if (depth >= this.maxQuiescenceDepth) {
+      return standPat;
+    }
     
-    if (isMaximizingPlayer) {
+    const inCheck = this.game.isCheck();
+    if (!inCheck && isMaximizingPlayer) {
       // Beta cutoff
       if (standPat >= beta) {
         return beta;
@@ -959,7 +981,7 @@ class ChessEngine {
       if (standPat > alpha) {
         alpha = standPat;
       }
-    } else {
+    } else if (!inCheck) {
       // Alpha cutoff
       if (standPat <= alpha) {
         return alpha;
@@ -972,7 +994,19 @@ class ChessEngine {
     
     // Only consider captures and checks (tactical moves)
     const allMoves = this.game.moves({ verbose: true });
-    const tacticalMoves = allMoves.filter(move => move.captured);
+    const tacticalMoves = allMoves.filter(move => {
+      if (inCheck || move.promotion) {
+        return true;
+      }
+
+      if (!move.captured) {
+        return false;
+      }
+
+      const capturedValue = this.pieceValues[move.captured] || 0;
+      const attackerValue = this.pieceValues[move.piece] || 0;
+      return capturedValue + 100 >= attackerValue;
+    });
     
     // If no tactical moves, return stand pat
     if (tacticalMoves.length === 0) {
@@ -987,12 +1021,12 @@ class ChessEngine {
     });
     
     if (isMaximizingPlayer) {
-      let maxEval = standPat;
+      let maxEval = inCheck ? -Infinity : standPat;
       
       for (let i = 0; i < tacticalMoves.length; i++) {
         this.game.move(tacticalMoves[i]);
-        const evaluation = this.quiescence(alpha, beta, false);
-        this.game.undo();
+        let evaluation;
+        try { evaluation = this.quiescence(alpha, beta, false, depth + 1); } finally { this.game.undo(); }
         
         maxEval = Math.max(maxEval, evaluation);
         alpha = Math.max(alpha, evaluation);
@@ -1004,12 +1038,12 @@ class ChessEngine {
       
       return maxEval;
     } else {
-      let minEval = standPat;
+      let minEval = inCheck ? Infinity : standPat;
       
       for (let i = 0; i < tacticalMoves.length; i++) {
         this.game.move(tacticalMoves[i]);
-        const evaluation = this.quiescence(alpha, beta, true);
-        this.game.undo();
+        let evaluation;
+        try { evaluation = this.quiescence(alpha, beta, true, depth + 1); } finally { this.game.undo(); }
         
         minEval = Math.min(minEval, evaluation);
         beta = Math.min(beta, evaluation);
@@ -1072,7 +1106,7 @@ class ChessEngine {
     }
 
     // Empty square: treat threats as black attacks
-    return this.getControllingMoves('b', square).length;
+    return this.getControllingMoves(this.aiColor, square).length;
   }
   
   /**
@@ -1090,7 +1124,7 @@ class ChessEngine {
     }
 
     // Empty square: treat shields as white control
-    return this.getControllingMoves('w', square).length;
+    return this.getControllingMoves(this.playerColor, square).length;
   }
   
   /**

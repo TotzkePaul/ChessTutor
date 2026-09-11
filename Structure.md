@@ -4,6 +4,13 @@ This file documents the repository layout and what each major file/folder is res
 
 Top-level
 
+- `Start Chess Tutor.cmd` — Windows launcher for the built offline app (requires Node.js).
+- `scripts/serve-offline.cjs` — local-only server using Node built-ins; `npm run offline`.
+- `scripts/offline-build.cjs` — creates a versioned service worker caching the production assets, including AI worker chunks.
+- `src/workers/` — AI worker, bundler-compatible factory, and test mock.
+- `src/components/OfflineStatus.js` — registers production offline caching and reports readiness.
+- `src/logic/offlineEngine.test.js` and `src/context/GameContext.test.js` — counter, evaluation, timeout, reset, and side-switch regressions.
+
 - `package.json` — project scripts and dependencies.
 - `README.md` — (project readme) general info.
 - `public/` — static HTML and assets used by the app.

@@ -40,7 +40,7 @@ const Tooltip = ({ content, children }) => {
             top: `${position.y}px`
           }}
         >
-          {content}
+          {typeof content === 'function' ? content() : content}
         </div>
       )}
     </div>

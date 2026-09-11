@@ -1,5 +1,6 @@
-import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChessEngine from '../logic/chessEngine';
+import { createChessWorker } from '../workers/workerFactory';
 
 // Create context
 export const GameContext = createContext();
@@ -21,8 +22,6 @@ export const GameProvider = ({ children }) => {
   const [lastMove, setLastMove] = useState(null);
   const [isGameOver, setIsGameOver] = useState(false);
   const [currentTurn, setCurrentTurn] = useState('w');
-  const [threatShieldData, setThreatShieldData] = useState({});
-  
   // AI settings
   const [searchDepth, setSearchDepth] = useState(3);
   const [isAiThinking, setIsAiThinking] = useState(false);
@@ -39,6 +38,29 @@ export const GameProvider = ({ children }) => {
   
   // AI thinking timeout ref
   const aiTimeoutRef = useRef(null);
+  const workerRef = useRef(null);
+  const workerRequestIdRef = useRef(0);
+  const useWorkerRef = useRef(true);
+
+  useEffect(() => {
+    const worker = createChessWorker();
+
+    if (!worker) {
+      useWorkerRef.current = false;
+      return undefined;
+    }
+
+    workerRef.current = worker;
+    useWorkerRef.current = true;
+
+    return () => {
+      workerRef.current?.terminate();
+      // Invalidate any queued reply from the terminated worker.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      workerRequestIdRef.current++;
+      workerRef.current = null;
+    };
+  }, []);
   
   // Apply game state changes from the engine
   const updateGameState = useCallback(() => {
@@ -47,9 +69,6 @@ export const GameProvider = ({ children }) => {
     setGameState(newState);
     setCurrentTurn(newState.turn);
     setIsGameOver(chessEngine.isGameOver());
-
-    // Calculate threat/shield data for all squares
-    setThreatShieldData(chessEngine.calculateAllThreatShields());
   }, [chessEngine]);
   
   // Handle player move
@@ -74,8 +93,37 @@ export const GameProvider = ({ children }) => {
     return result;
   };
   
+  const applyAiMove = useCallback((move) => {
+    if (!move) {
+      setIsAiThinking(false);
+      return;
+    }
+
+    const aiMove = chessEngine.makeMove(move);
+
+    if (aiMove) {
+      setLastMove(aiMove);
+      updateGameState();
+    }
+
+    setIsAiThinking(false);
+  }, [chessEngine, updateGameState]);
+
+  const runAiMoveOnMainThread = useCallback(() => {
+    const aiMove = chessEngine.makeAiMove();
+
+    if (aiMove) {
+      setLastMove(aiMove);
+      updateGameState();
+    }
+
+    setIsAiThinking(false);
+  }, [chessEngine, updateGameState]);
+
   // Schedule AI move with a small delay for better UX
   const scheduleAiMove = useCallback(() => {
+    if (chessEngine.isGameOver() || chessEngine.game.turn() !== chessEngine.aiColor) return;
+    const scheduledId = ++workerRequestIdRef.current;
     setIsAiThinking(true);
 
     // Clear any existing timeout
@@ -85,26 +133,73 @@ export const GameProvider = ({ children }) => {
 
     // Schedule AI move after a short delay
     aiTimeoutRef.current = setTimeout(() => {
-      const aiMove = chessEngine.makeAiMove();
+      const requestId = scheduledId;
 
-      if (aiMove) {
-        setLastMove(aiMove);
-        updateGameState();
+      if (useWorkerRef.current && workerRef.current) {
+        workerRef.current.onmessage = (event) => {
+          const { id, type, move } = event.data || {};
+
+          if (id !== requestId || id !== workerRequestIdRef.current) {
+            return;
+          }
+
+          if (type === 'BEST_MOVE') {
+            applyAiMove(move);
+            return;
+          }
+
+          useWorkerRef.current = false;
+          runAiMoveOnMainThread();
+        };
+
+        workerRef.current.onerror = () => {
+          if (requestId !== workerRequestIdRef.current) return;
+          useWorkerRef.current = false;
+          runAiMoveOnMainThread();
+        };
+
+        workerRef.current.postMessage({
+          id: requestId,
+          type: 'GET_BEST_MOVE',
+          payload: {
+            fen: chessEngine.getFen(),
+            history: chessEngine.history,
+            moveCount: chessEngine.moveCount,
+            playerColor: chessEngine.playerColor,
+            searchDepth,
+            selectedStrategies,
+            strategyOrder
+          }
+        });
+      } else {
+        runAiMoveOnMainThread();
       }
-
-      setIsAiThinking(false);
-    }, 500); // 500ms delay for better UX
-  }, [chessEngine, updateGameState]);
+    }, 20);
+  }, [
+    applyAiMove,
+    chessEngine,
+    runAiMoveOnMainThread,
+    searchDepth,
+    selectedStrategies,
+    strategyOrder
+  ]);
   
   // Reset game
   const resetGame = () => {
+    workerRequestIdRef.current++;
+    clearTimeout(aiTimeoutRef.current);
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = createChessWorker();
+    }
+    setIsAiThinking(false);
     chessEngine.resetGame();
     setSelectedSquare(null);
     setLastMove(null);
     updateGameState();
     
     // If player is black, AI (white) should make first move
-    if (playerColor === 'b' && !isGameOver) {
+    if (chessEngine.playerColor === 'b') {
       scheduleAiMove();
     }
   };
@@ -112,6 +207,7 @@ export const GameProvider = ({ children }) => {
   // Update player color
   const handleSetPlayerColor = (color) => {
     setPlayerColor(color);
+    setSelectedSquare(null);
     chessEngine.setPlayerColor(color);
   };
   
@@ -135,7 +231,13 @@ export const GameProvider = ({ children }) => {
   const getPiece = (square) => {
     return chessEngine.getPiece(square);
   };
-  
+
+  const threatShieldMap = useMemo(() => chessEngine.calculateAllThreatShields(),
+    // The mutable engine changes when the position or player perspective changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chessEngine, fen, playerColor]);
+  const getThreatShieldCount = useCallback(square => threatShieldMap[square], [threatShieldMap]);
+
   // Clean up any timeouts when component unmounts
   useEffect(() => {
     return () => {
@@ -144,13 +246,6 @@ export const GameProvider = ({ children }) => {
       }
     };
   }, []);
-  
-  // Make first AI move if player is black
-  useEffect(() => {
-    if (playerColor === 'b' && currentTurn === 'w' && !isGameOver && gameState.moveCount === 0) {
-      scheduleAiMove();
-    }
-  }, [playerColor, currentTurn, isGameOver, gameState.moveCount, scheduleAiMove]);
   
   return (
     <GameContext.Provider
@@ -164,10 +259,10 @@ export const GameProvider = ({ children }) => {
         lastMove,
         isGameOver,
         currentTurn,
-        threatShieldData,
         makeMove,
         resetGame,
         getPiece,
+        getThreatShieldCount,
         searchDepth,
         setSearchDepth: handleSetSearchDepth,
         isAiThinking,
