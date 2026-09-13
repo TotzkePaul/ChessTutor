@@ -1,19 +1,19 @@
 {
   "files": {
-    "main.css": "/ChessTutor/static/css/main.96b40cbd.css",
-    "main.js": "/ChessTutor/static/js/main.456c916d.js",
+    "main.css": "/ChessTutor/static/css/main.fa240a76.css",
+    "main.js": "/ChessTutor/static/js/main.1c08dbbb.js",
     "static/js/123.2cbcc772.chunk.js": "/ChessTutor/static/js/123.2cbcc772.chunk.js",
     "static/js/453.c3edd9d2.chunk.js": "/ChessTutor/static/js/453.c3edd9d2.chunk.js",
     "static/js/314.c1f16077.chunk.js": "/ChessTutor/static/js/314.c1f16077.chunk.js",
     "index.html": "/ChessTutor/index.html",
-    "main.96b40cbd.css.map": "/ChessTutor/static/css/main.96b40cbd.css.map",
-    "main.456c916d.js.map": "/ChessTutor/static/js/main.456c916d.js.map",
+    "main.fa240a76.css.map": "/ChessTutor/static/css/main.fa240a76.css.map",
+    "main.1c08dbbb.js.map": "/ChessTutor/static/js/main.1c08dbbb.js.map",
     "123.2cbcc772.chunk.js.map": "/ChessTutor/static/js/123.2cbcc772.chunk.js.map",
     "453.c3edd9d2.chunk.js.map": "/ChessTutor/static/js/453.c3edd9d2.chunk.js.map",
     "314.c1f16077.chunk.js.map": "/ChessTutor/static/js/314.c1f16077.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.96b40cbd.css",
-    "static/js/main.456c916d.js"
+    "static/css/main.fa240a76.css",
+    "static/js/main.1c08dbbb.js"
   ]
 }

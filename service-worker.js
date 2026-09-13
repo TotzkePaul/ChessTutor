@@ -1,6 +1,6 @@
 
-const CACHE = "chess-tutor-ac74bc4a93a57700";
-const ASSETS = ["./asset-manifest.json","./favicon.ico","./index.html","./logo192.png","./logo512.png","./manifest.json","./robots.txt","./static/css/main.96b40cbd.css","./static/js/123.2cbcc772.chunk.js","./static/js/314.c1f16077.chunk.js","./static/js/314.c1f16077.chunk.js.LICENSE.txt","./static/js/453.c3edd9d2.chunk.js","./static/js/main.456c916d.js","./static/js/main.456c916d.js.LICENSE.txt"];
+const CACHE = "chess-tutor-30a85f5a7c8a72ea";
+const ASSETS = ["./asset-manifest.json","./favicon.ico","./index.html","./logo192.png","./logo512.png","./manifest.json","./robots.txt","./static/css/main.fa240a76.css","./static/js/123.2cbcc772.chunk.js","./static/js/314.c1f16077.chunk.js","./static/js/314.c1f16077.chunk.js.LICENSE.txt","./static/js/453.c3edd9d2.chunk.js","./static/js/main.1c08dbbb.js","./static/js/main.1c08dbbb.js.LICENSE.txt"];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
 });
