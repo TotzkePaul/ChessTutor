@@ -105,14 +105,17 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 3rem;
-  line-height: 1;
   z-index: 2;
   width: 100%;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.piece svg {
+  display: block;
+  opacity: 1;
+  mix-blend-mode: normal;
 }
 
 
@@ -425,7 +428,7 @@
   }
   
   .piece {
-    font-size: 2rem;
+    height: 74%;
   }
 }
 
@@ -442,6 +445,68 @@
 .counter-legend { font-size: 0.85rem; line-height: 1.5; color: #344054; }
 .square:focus-visible { outline: 3px solid #0066cc; outline-offset: -3px; }
 
+.captured-strip {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #344054;
+}
+
+.captured-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.captured-label {
+  width: 106px;
+  color: #3f5448;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.captured-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.captured-piece,
+.captured-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.captured-piece {
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: #f7faf7;
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  box-sizing: border-box;
+}
+
+.captured-piece .piece-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.captured-empty {
+  color: #8a978f;
+  font-size: 12px;
+  min-height: 18px;
+}
+
+.captured-strip .legend-icons {
+  gap: 14px;
+}
+
 /* Calm, compact playing surface with controls at the upper right. */
 .app { background: #f4f5f1; color: #24362f; }
 .app-header { background: #203a31; display: flex; align-items: center; justify-content: space-between; padding: 22px max(24px, calc((100vw - 1180px) / 2)); text-align: left; }
@@ -456,9 +521,25 @@
 .square-dark { background: #88a08a; }
 .square-last-move { background: #c9ce85; }
 .square-selected { box-shadow: inset 0 0 0 3px #bd8734; }
-.piece { font-size: clamp(28px, 4.3vw, 52px); height: 80%; top: 43%; }
-.piece-w { color: #fffef2; text-shadow: 1px 1px 0 #24352c, -1px -1px 0 #24352c, 1px -1px 0 #24352c, -1px 1px 0 #24352c, 0 2px 2px #24352c66; }
-.piece-b { color: #22352c; text-shadow: 0 1px 0 #ffffff55; }
+.piece {
+  height: 80%;
+  top: 43%;
+}
+.piece-svg {
+  width: 78%;
+  height: 78%;
+  opacity: 1;
+  shape-rendering: geometricPrecision;
+  fill: currentColor;
+  fill-opacity: 1 !important;
+  stroke: none !important;
+}
+.piece-w {
+  color: #ffffff;
+}
+.piece-b {
+  color: #111111;
+}
 .square-coordinate { color: #24362fb3; font-size: 9px; top: 3px; left: 4px; font-weight: 600; }
 .chess-icon { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
 .square-counters { bottom: 3px; left: 3px; right: 3px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }

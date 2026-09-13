@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Square from './Square';
 import ChessIcon from './ChessIcon';
+import PieceIcon from './PieceIcon';
 import { useChessGame } from '../hooks/useChessGame';
 import '../styles/Board.css';
 
@@ -114,6 +115,25 @@ const Board = () => {
     return board;
   };
 
+  const blackCaptured = gameState.history
+    .filter((move) => move.color === 'w' && move.captured)
+    .map((move) => ({ pieceType: move.captured, pieceColor: 'b' }));
+
+  const whiteCaptured = gameState.history
+    .filter((move) => move.color === 'b' && move.captured)
+    .map((move) => ({ pieceType: move.captured, pieceColor: 'w' }));
+
+  const renderCapturedPieces = (capturedPieces) => {
+    if (capturedPieces.length === 0) {
+      return <span className="captured-empty">None</span>;
+    }
+
+    return capturedPieces.map((piece, index) => (
+      <span className="captured-piece" key={`${piece.pieceType}-${piece.pieceColor}-${index}`}>
+        <PieceIcon pieceType={piece.pieceType} pieceColor={piece.pieceColor} />
+      </span>
+    ));
+  };
 
   return (
     <div className="board-container">
@@ -126,6 +146,16 @@ const Board = () => {
         }}
       >
         {renderBoard()}
+      </div>
+      <div className="captured-strip" aria-label="Captured pieces">
+        <div className="captured-row">
+          <span className="captured-label">Black captured</span>
+          <span className="captured-list">{renderCapturedPieces(blackCaptured)}</span>
+        </div>
+        <div className="captured-row">
+          <span className="captured-label">White captured</span>
+          <span className="captured-list">{renderCapturedPieces(whiteCaptured)}</span>
+        </div>
       </div>
       
       

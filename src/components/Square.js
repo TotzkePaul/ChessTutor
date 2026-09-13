@@ -1,6 +1,7 @@
 import React from 'react';
 import Tooltip from './Tooltip';
 import ChessIcon from './ChessIcon';
+import PieceIcon from './PieceIcon';
 import '../styles/Board.css';
 
 /**
@@ -24,20 +25,11 @@ const Square = ({
     ${isLastMove ? 'square-last-move' : ''}
   `;
   
-  // Get piece Unicode character or image path
+  // Render piece SVG icon
   const getPieceDisplay = () => {
     if (!piece) return null;
     
-    const pieceSymbols = {
-      k: { w: '♔', b: '♚' },
-      q: { w: '♕', b: '♛' },
-      r: { w: '♖', b: '♜' },
-      b: { w: '♗', b: '♝' },
-      n: { w: '♘', b: '♞' },
-      p: { w: '♙', b: '♟' }
-    };
-    
-    return pieceSymbols[piece.type][piece.color];
+    return <PieceIcon pieceType={piece.type} pieceColor={piece.color} />;
   };
   
   // Format tooltip content
